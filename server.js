@@ -6,13 +6,14 @@ Slingshot.Cloudinary = {
     CloudinaryPreset: String,
 
     key: Match.OneOf(String, Function),
+    notificationUrl: Match.Optional(String)
   },
 
   directiveDefault: Object.assign({}, {
     CloudinarySecret: Meteor.settings.CloudinarySecret,
     CloudinaryKey: Meteor.settings.CloudinaryKey,
     CloudinaryCloudName: Meteor.settings.CloudinaryCloudName,
-    CloudinaryPreset: Meteor.settings.CloudinaryPreset,
+    CloudinaryPreset: Meteor.settings.CloudinaryPreset
   }),
 
   isImage(mime) {
@@ -34,9 +35,9 @@ Slingshot.Cloudinary = {
         : 'raw';
   },
 
-  upload: function upload(method, directive, file) {
+  upload: function upload(method, directive, file, meta) {
     const { CloudinaryCloudName } = directive;
-    const publicId = directive.key();
+    const publicId = directive.key(file, meta);
 
     // Cloudinary's node lib supplies most of what we need.
     const cloudinarySign = this.cloudinarySign(publicId, directive, file);
@@ -46,34 +47,33 @@ Slingshot.Cloudinary = {
     );
 
     const type = this.resourceType(file.type);
-    console.log('type',type, file.type);
 
     const retVal = {
       upload: cloudinarySign.form_attrs.action,
       download: `http://res.cloudinary.com/${CloudinaryCloudName}/${type}/upload/${publicId}`,
-      postData,
+      postData
     };
-    console.log(retVal);
 
     return retVal;
   },
 
   cloudinarySign: function sign(publicId, directive, file) {
-    const options = _.extend({
+    const options = {
       public_id: publicId,
       upload_preset: directive.CloudinaryPreset,
       api_key: directive.CloudinaryKey,
       api_secret: directive.CloudinarySecret,
       cloud_name: directive.CloudinaryCloudName,
+      notification_url: directive.notificationUrl,
 
       // TODO make isImage more robust, add isVideo, and allow
       // raw uploads.  Probably better if isImage and isVideo
       // isn't in this lib.
-      resource_type: this.resourceType(file.type),
-    });
+      resource_type: this.resourceType(file.type)
+    };
 
     const signature = Cloudinary.uploader.direct_upload('', options);
 
     return signature;
-  },
+  }
 };
